@@ -13,10 +13,10 @@
 
 ## Rule
 
-When changing or deleting a file you will always have to get an approval.
-Things like buying a ticket cost money. Buying things will always need an approval.
-Reading cant break anything. The result could be worse because he read something that was not necessary.
-Creating text files could be allowed, but should be specified in a system prompt.
+- **Changing or deleting files:** always requires approval.
+- **Spending money:** anything that costs money, such as buying a ticket, always requires approval.
+- **Reading:** allowed without approval, because reading can't break anything. The only risk is a worse result if the agent reads something unnecessary.
+- **Creating text files:** can be allowed without approval, but only if the system prompt explicitly says so.
 
 ## Observations
 
