@@ -76,6 +76,21 @@ Each run writes its own JSONL file to `logs/` (git-ignored), one line per step:
 Additional fields: `task`, `result`, `answer`, `error`, `round` (number of the model call),
 `fatal` (`false` on an `error` that did not end the run).
 
+## Manual tests
+
+A fixed list of typical questions (`manual_tests/questions.py`) is asked one after the
+other. The answers are not checked automatically; you read the report.
+
+```bash
+python -m manual_tests                 # all questions
+python -m manual_tests --only 1,5,7    # a subset
+```
+
+"Today" is pinned to 2026-10-28 (change it with `--today`) so that relative dates hit the
+mock calendar (2026-10-26 to 2026-11-08). Each run writes `test_runs/<timestamp>.md` with,
+for every question: what to check, the answer, the tool calls made, rounds used, the path
+to its JSONL log and an empty pass/fail field.
+
 ## Structure
 
 | File | Purpose |
@@ -85,3 +100,4 @@ Additional fields: `task`, `result`, `answer`, `error`, `round` (number of the m
 | `agent/tools.py` | tool description for the model and the HTTP fetch of `calendar/{YYYY-MM-DD}.json` (404 → "no data" result) |
 | `agent/agent.py` | the agent loop, step limit and per-step error handling |
 | `agent/runlog.py` | JSONL run log |
+| `manual_tests/` | test questions and the runner that writes the review report |

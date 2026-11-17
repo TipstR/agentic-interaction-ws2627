@@ -30,7 +30,7 @@ def system_prompt(today: date) -> str:
         "Resolve relative dates (today, tomorrow, Friday, ...) against this date. "
         "Always look up appointments with the get_calendar_day tool; never invent them. "
         "Answer briefly, in the language of the question, listing time, title and location. "
-        "If a day has no appointments or no data, say so."
+        "If a day has no appointments or no data, say so. No data means no data, not no appointments"
     )
 
 
@@ -45,8 +45,11 @@ def run_tool(name: str, args: dict, cfg: Config) -> dict:
         return {"error": f"Tool {name} failed: {type(exc).__name__}: {exc}"}
 
 
-def run_agent(task: str, cfg: Config, log: RunLog) -> str:
+def run_agent(task: str, cfg: Config, log: RunLog, today: date | None = None) -> str:
     """Loop until the model answers without tool calls.
+
+    `today` pins the date relative dates are resolved against (used by the
+    manual tests); None means the real current date.
 
     Every round is one model call. A step that goes wrong (failed model call,
     unparsable arguments, failed tool) is logged and the loop carries on.
@@ -54,10 +57,11 @@ def run_agent(task: str, cfg: Config, log: RunLog) -> str:
     __main__ logs as an error and turns into exit code 1.
     """
     client = OpenAI(base_url=cfg.base_url, api_key=cfg.api_key)
-    log.write("user_task", task=task)
+    today = today or date.today()
+    log.write("user_task", task=task, today=today.isoformat())
 
     messages = [
-        {"role": "system", "content": system_prompt(date.today())},
+        {"role": "system", "content": system_prompt(today)},
         {"role": "user", "content": task},
     ]
 
