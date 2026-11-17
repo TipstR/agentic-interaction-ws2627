@@ -1,4 +1,4 @@
-"""JSONL run log: one file per run in logs/, one JSON object per line."""
+"""JSONL run log: one file per run in logs/<YYYY-MM-DD>/, one JSON object per line."""
 
 import json
 import uuid
@@ -13,9 +13,10 @@ class RunLog:
     def __init__(self, model: str):
         self.run_id = uuid.uuid4().hex
         self.model = model
-        LOG_DIR.mkdir(exist_ok=True)
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.path = LOG_DIR / f"{stamp}_{self.run_id[:8]}.jsonl"
+        now = datetime.now()
+        day_dir = LOG_DIR / now.strftime("%Y-%m-%d")
+        day_dir.mkdir(parents=True, exist_ok=True)
+        self.path = day_dir / f"{now.strftime('%H%M%S')}_{self.run_id[:8]}.jsonl"
 
     def write(self, event: str, *, ok: bool = True, duration_ms: float | None = None,
               tool: str | None = None, args: dict | None = None, **extra) -> None:

@@ -61,7 +61,8 @@ A single step that goes wrong does not end the run:
 
 ## Log
 
-Each run writes its own JSONL file to `logs/` (git-ignored), one line per step:
+Each run writes its own JSONL file to `logs/<YYYY-MM-DD>/<HHMMSS>_<run id>.jsonl`
+(git-ignored), one folder per day and one line per step:
 
 | Field | Content |
 |---|---|
