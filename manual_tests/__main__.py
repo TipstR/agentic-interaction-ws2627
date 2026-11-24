@@ -29,6 +29,11 @@ def summarize_result(result: dict) -> str:
     events = result.get("events")
     if isinstance(events, list):
         return f"{len(events)} events"
+    connections = result.get("connections")
+    if isinstance(connections, list):
+        return f"{len(connections)} connections"
+    if "condition" in result:
+        return f"{result['condition']}, {result.get('temp_c')} °C"
     return json.dumps(result, ensure_ascii=False)[:80]
 
 
@@ -42,7 +47,7 @@ def read_log(path) -> dict:
         rounds = max(rounds, rec.get("round") or 0)
         if rec["event"] == "tool_result":
             args = rec.get("args") or {}
-            arg = args.get("date", json.dumps(args, ensure_ascii=False))
+            arg = ", ".join(str(v) for v in args.values())
             calls.append(f"{rec['tool']}({arg}) -> {summarize_result(rec.get('result') or {})}")
         elif rec["event"] == "error":
             errors.append(rec.get("error", ""))

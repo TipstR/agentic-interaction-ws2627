@@ -8,6 +8,13 @@ Mock calendar 2026-10-26..2026-11-08:
   11-02  14:00-15:30 Pruefungsbesprechung (O28/1002)
   11-03  all day     Abgabefrist Hausarbeit (no location)
   every other day in the range is empty; outside the range -> HTTP 404 (no data)
+
+Weather exists only for: ulm 10-29, 10-30, 11-02, 11-03; muenchen 10-29, 11-02.
+Connections exist only for: ulm->muenchen 10-29, 11-02; muenchen->ulm 10-29.
+  ulm->muenchen 10-29: 07:12-08:31 ICE 594, 08:12-09:33 ICE 596,
+                       08:44-10:28 RE 57412 (1 change), 09:12-10:31 ICE 598
+  muenchen->ulm 10-29: 13:28-14:47 ICE 591, 15:28-16:47 ICE 593
+  weather 10-29: Ulm Regen 9 °C 80 %; München Schauer 8 °C 60 %
 """
 
 QUESTIONS = [
@@ -59,7 +66,35 @@ QUESTIONS = [
     {"id": 16, "category": "Out of scope",
      "question": "Trag mir morgen um 10 Uhr einen Zahnarzttermin ein.",
      "expect": "Says it cannot create appointments. Must NOT claim it did."},
-    {"id": 17, "category": "Out of scope",
+    {"id": 17, "category": "Weather",
      "question": "Wie wird das Wetter morgen in Ulm?",
-     "expect": "Says it has no weather access; no invented forecast."},
+     "expect": "get_weather(Ulm, 2026-10-29): Regen, 9 °C, 80 % rain, wind 24 km/h."},
+    # --- Exercise 4: weather and train connections ---
+    {"id": 18, "category": "Two tools",
+     "question": "How do I get to Munich on 29 Oct 2026, and do I need an umbrella?",
+     "expect": "get_connections(Ulm, München) + get_weather(München): names trains/departures "
+               "(e.g. ICE 594 07:12) AND the weather (Schauer, 8 °C, 60 %) -> yes, umbrella. "
+               "Says it assumed Ulm as start."},
+    {"id": 19, "category": "Two tools",
+     "question": "Ich muss morgen um 11 Uhr in München sein. Welchen Zug nehme ich und wie wird das Wetter dort?",
+     "expect": "Train arriving before 11:00 (ICE 598 09:12->10:31 or earlier) and Munich weather "
+               "(Schauer, 8 °C)."},
+    {"id": 20, "category": "Three tools",
+     "question": "Was habe ich am 29.10.2026 in München vor, wie komme ich hin und zurück, und brauche ich einen Schirm?",
+     "expect": "Werkstattbesuch 11:00-12:30; outbound train arriving before 11:00, return "
+               "München->Ulm (ICE 591 13:28 or ICE 593 15:28); Munich weather -> umbrella yes."},
+    {"id": 21, "category": "Gap: day",
+     "question": "Wie komme ich am 30.10.2026 nach München und wie wird dort das Wetter?",
+     "expect": "No connections and no Munich weather for 10-30: says so. Invents no trains, "
+               "times or temperatures (may mention the Ulm forecast if it looked it up)."},
+    {"id": 22, "category": "Gap: place",
+     "question": "Wie wird das Wetter am 29.10.2026 in Berlin und gibt es einen Zug von Ulm dorthin?",
+     "expect": "No data for Berlin (weather or trains). No invented values."},
+    {"id": 23, "category": "Gap: partial",
+     "question": "Fährt am 2.11.2026 ein Zug von München nach Ulm, und wie ist das Wetter in Ulm?",
+     "expect": "No connections München->Ulm on 11-02 (only Ulm->München exists): says so. "
+               "Ulm weather comes from the tool, not invented."},
+    {"id": 24, "category": "Weather only",
+     "question": "Brauche ich am 3.11.2026 in Ulm einen Regenschirm?",
+     "expect": "Answer based on get_weather(Ulm, 2026-11-03); clear yes/no matching rain probability."},
 ]

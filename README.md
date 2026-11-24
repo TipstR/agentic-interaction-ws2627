@@ -2,10 +2,30 @@
 
 Agentic Interaction, WS 2026/27, Ulm University.
 
-**Exercise 3 – The Agent Loop:** an agent that answers questions about the
-[mock calendar](https://github.com/jhbelz/agentic-interaction-data) with one tool
-(`get_calendar_day`). It calls the model in a loop, runs the requested tool calls and stops
+An agent that answers questions about the
+[mock data](https://github.com/jhbelz/agentic-interaction-data) (calendar, weather, train
+connections). It calls the model in a loop, runs the requested tool calls and stops
 by itself as soon as the model answers without asking for another tool.
+
+## Tools
+
+| Tool | Arguments | Data path under `DATA_BASE_URL` |
+|---|---|---|
+| `get_calendar_day` | `date` | `calendar/{date}.json` |
+| `get_weather` | `city`, `date` | `weather/{city}/{date}.json` |
+| `get_connections` | `from_city`, `to_city`, `date` | `transit/{from}/{to}/{date}.json` |
+
+City names are normalised to the data's slugs (`München`, `Munich` → `muenchen`). Weather and
+connections exist only for a few days; an HTTP 404 or an unknown city comes back to the model
+as `no_data: true` with the note that the value is *unknown*, so the agent reports the gap
+instead of inventing a forecast or a train. A task may combine tools in one run, e.g.
+
+```bash
+python -m agent "How do I get to Munich on 29 Oct 2026, and do I need an umbrella?"
+```
+
+looks up `get_connections(Ulm, München, 2026-10-29)` and `get_weather(München, 2026-10-29)`.
+If a trip has no starting point, the agent assumes Ulm (the user's home in the mock data).
 
 ## Setup
 
@@ -53,7 +73,7 @@ Relative dates ("morgen", "Freitag") are resolved against the real current date
 
 A single step that goes wrong does not end the run:
 
-- A failed tool call (invalid date, unknown tool, unparsable arguments, data server
+- A failed tool call (invalid date or city, unknown tool, unparsable arguments, data server
   unreachable) is returned to the model as `{"error": ...}` and logged as `tool_result`
   with `ok: false`.
 - A failed model call (rate limit, malformed tool call, outage) or an empty reply is logged
@@ -98,7 +118,7 @@ to its JSONL log and an empty pass/fail field.
 |---|---|
 | `agent/__main__.py` | CLI entry point (`python -m agent "…"`) |
 | `agent/config.py` | reads `.env` / environment |
-| `agent/tools.py` | tool description for the model and the HTTP fetch of `calendar/{YYYY-MM-DD}.json` (404 → "no data" result) |
+| `agent/tools.py` | tool descriptions for the model and the HTTP fetches of calendar, weather and transit (404 → "no data" result) |
 | `agent/agent.py` | the agent loop, step limit and per-step error handling |
 | `agent/runlog.py` | JSONL run log |
 | `manual_tests/` | test questions and the runner that writes the review report |

@@ -2,13 +2,13 @@
 
 import json
 import time
-from datetime import date
+from datetime import date, timedelta
 
 from openai import APIError, AuthenticationError, NotFoundError, OpenAI, PermissionDeniedError
 
 from .config import Config
 from .runlog import RunLog
-from .tools import TOOLS, get_calendar_day
+from .tools import TOOLS, get_calendar_day, get_connections, get_weather
 
 MAX_ROUNDS = 10  # step limit: model calls per run; hitting it is an error
 
@@ -23,24 +23,57 @@ class StepLimitError(RuntimeError):
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 
+HOME_CITY = "Ulm"  # the user's home (context.json of the mock data)
+
+
 def system_prompt(today: date) -> str:
+    # Spell out the dates of this week and the next: small models get weekday arithmetic wrong.
+    monday = today - timedelta(days=today.weekday())
+    days = [monday + timedelta(days=i) for i in range(14)]
+    this_week = ", ".join(f"{WEEKDAYS[d.weekday()][:3]} {d.isoformat()}" for d in days[:7])
+    next_week = ", ".join(f"{WEEKDAYS[d.weekday()][:3]} {d.isoformat()}" for d in days[7:])
     return (
-        "You are a calendar assistant. "
+        "You are a personal assistant for calendar, weather and train travel. "
         f"Today is {WEEKDAYS[today.weekday()]}, {today.isoformat()}. "
-        "Resolve relative dates (today, tomorrow, Friday, ...) against this date. "
-        "Always look up appointments with the get_calendar_day tool; never invent them. "
-        "Answer briefly, in the language of the question, listing time, title and location. "
-        "If a day has no appointments or no data, say so. No data means no data, not no appointments"
+        f"This week (Monday to Sunday): {this_week}. Next week: {next_week}. "
+        "Resolve relative dates (today, tomorrow, Friday, ...) against these dates. "
+        "To find the next appointment after a day, keep checking the following days one by "
+        "one until you find one or reach a day with no data. "
+        f"The user lives in {HOME_CITY}; if a trip has no starting point, assume {HOME_CITY} "
+        "and say so.\n"
+        "Tools: get_calendar_day for appointments, get_weather for the forecast of a city, "
+        "get_connections for trains between two cities. A question may need several tools; "
+        "call all that are needed before answering (e.g. for 'how do I get to X and do I need "
+        "an umbrella', look up the connections to X and the weather in X on that day).\n"
+        "Only state facts that a tool returned. Never invent appointments, temperatures, "
+        "weather, trains or times. If a tool returns no_data, say plainly that there is no "
+        "data for that place or day (not that nothing happens), and still answer the parts "
+        "you do have data for. No calendar data means no data, not a free day.\n"
+        "Answer briefly, always in the language of the user's question, even though the "
+        "data is partly German. Appointments: time, title, location. "
+        "Trains: departure, arrival, train, changes. Weather: condition, temperature and rain "
+        "probability, plus a clear yes/no if the user asks about an umbrella."
     )
+
+
+# Tool name -> function(data_base_url, args). Missing arguments arrive as None
+# and are rejected by the tool itself with an {"error": ...} result.
+TOOL_FUNCS = {
+    "get_calendar_day": lambda base, a: get_calendar_day(base, a.get("date")),
+    "get_weather": lambda base, a: get_weather(base, a.get("city"), a.get("date")),
+    "get_connections": lambda base, a: get_connections(
+        base, a.get("from_city"), a.get("to_city"), a.get("date")),
+}
 
 
 def run_tool(name: str, args: dict, cfg: Config) -> dict:
     """Run one tool. Never raises: a failure is returned as {"error": ...}
     so the model sees it and the run continues."""
-    if name != "get_calendar_day":
-        return {"error": f"Unknown tool {name!r}. Available: get_calendar_day."}
+    func = TOOL_FUNCS.get(name)
+    if func is None:
+        return {"error": f"Unknown tool {name!r}. Available: {', '.join(TOOL_FUNCS)}."}
     try:
-        return get_calendar_day(cfg.data_base_url, args.get("date"))
+        return func(cfg.data_base_url, args)
     except Exception as exc:  # network failure, HTTP 5xx, broken JSON, ...
         return {"error": f"Tool {name} failed: {type(exc).__name__}: {exc}"}
 
